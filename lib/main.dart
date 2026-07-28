@@ -42,13 +42,18 @@ class RtcHomeScreen extends StatefulWidget {
   State<RtcHomeScreen> createState() => _RtcHomeScreenState();
 }
 
-class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProviderStateMixin {
+class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateMixin {
   final EspUdpService _udpService = EspUdpService();
   Timer? _localClockTimer;
   Timer? _blinkTimer;
+  Timer? _toastTimer;
   DateTime _now = DateTime.now();
   late AnimationController _rgbAnimationController;
+  late AnimationController _toastProgressController;
   bool _showColon = true;
+  String? _toastMessage;
+  bool _isToastSuccess = true;
+  bool _showToast = false;
 
   @override
   void initState() {
@@ -72,14 +77,56 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
       vsync: this,
       duration: const Duration(seconds: 4), // Durasi 4 detik bolak-balik
     )..repeat(reverse: true);
+
+    _toastProgressController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000), // Durasi toast tampil 3 detik
+    );
   }
 
   @override
   void dispose() {
     _localClockTimer?.cancel();
     _blinkTimer?.cancel();
+    _toastTimer?.cancel();
     _rgbAnimationController.dispose();
+    _toastProgressController.dispose();
     super.dispose();
+  }
+
+  void _showCustomToast(String message, {bool isSuccess = true}) {
+    // 1. Batalkan timer penutupan sebelumnya agar tidak menutup di tengah jalan
+    _toastTimer?.cancel();
+
+    // 2. Reset progress bar notifikasi langsung dari awal (1.0 -> 0.0)
+    _toastProgressController.reset();
+
+    setState(() {
+      _toastMessage = message;
+      _isToastSuccess = isSuccess;
+      _showToast = true; // Memicu transisi naik (slide-in)
+    });
+
+    // 3. Jalankan progress bar menyusut (dari 1.0 ke 0.0)
+    _toastProgressController.reverse(from: 1.0);
+
+    // 4. Set timer baru untuk menutup secara otomatis setelah 3 detik
+    _toastTimer = Timer(const Duration(milliseconds: 3000), () {
+      if (mounted) {
+        setState(() {
+          _showToast = false; // Memicu transisi turun (slide-out)
+        });
+        
+        // Tunggu 300ms (durasi animasi slide-out selesai) sebelum menghapus widget dari tree
+        Timer(const Duration(milliseconds: 300), () {
+          if (mounted && !_showToast) {
+            setState(() {
+              _toastMessage = null;
+            });
+          }
+        });
+      }
+    });
   }
 
   String _getFormattedFullDate(DateTime now) {
@@ -96,9 +143,13 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
 
 
   Future<void> _openCustomDatePicker(BuildContext context) async {
+    final isConnected = _udpService.connectionState.value == EspConnectionState.connected;
+    if (!isConnected) {
+      _showCustomToast('❌ Gagal memperbarui waktu. RTC belum terhubung!', isSuccess: false);
+      return;
+    }
+
     final now = DateTime.now();
-    // Capture messenger before async gap to avoid BuildContext warning
-    final messenger = ScaffoldMessenger.of(context);
 
     final date = await showDatePicker(
       context: context,
@@ -161,73 +212,157 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
       selectedDateTime.second,
     );
 
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          'Waktu diset ke ${selectedDateTime.toString().split('.')[0]}',
-        ),
-        backgroundColor: const Color(0xFF06B6D4),
-      ),
-    );
+    _showCustomToast('✅ Waktu berhasil diperbarui');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF3F7FA),
-              Color(0xFFE5ECF4),
-            ],
+      body: Stack(
+        children: [
+          // MAIN APP LAYOUT
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFF3F7FA),
+                  Color(0xFFE5ECF4),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // ====================================================
+                  RtcHeader(now: _now, udpService: _udpService),
+
+                  // ====================================================
+                  // MAIN BODY (RTC CLOCK & SENSOR METRICS)
+                  // ====================================================
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: Column(
+                        children: [
+                          // DIGITAL CLOCK DISPLAY CARD
+                          ValueListenableBuilder<RtcDataModel?>(
+                            valueListenable: _udpService.rtcStateNotifier,
+                            builder: (context, rtcData, _) {
+                              return _buildMainClockCard(rtcData);
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          // HEALTH & METRIC GRID CARDS
+                          ValueListenableBuilder<RtcDataModel?>(
+                            valueListenable: _udpService.rtcStateNotifier,
+                            builder: (context, rtcData, _) {
+                              return _buildMetricsGrid(rtcData);
+                            },
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ACTION BUTTONS (SYNC PHONE TIME & CUSTOM SET)
+                          _buildActionButtons(context),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // ====================================================
-              RtcHeader(now: _now, udpService: _udpService),
 
-              // ====================================================
-              // MAIN BODY (RTC CLOCK & SENSOR METRICS)
-              // ====================================================
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    children: [
-                      // DIGITAL CLOCK DISPLAY CARD
-                      ValueListenableBuilder<RtcDataModel?>(
-                        valueListenable: _udpService.rtcStateNotifier,
-                        builder: (context, rtcData, _) {
-                          return _buildMainClockCard(rtcData);
-                        },
+          // OVERLAY TOAST / NOTIFICATION (Floating at the bottom center with slide-up & fade-in animations)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutBack, // Efek pop-up memantul yang premium
+            left: 24,
+            right: 24,
+            bottom: _showToast ? 30 : -120, // Slide up/down secara dinamis
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: _showToast ? 1.0 : 0.0, // Fade-in/out
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 300), // Dibatasi maksimal lebar 300px agar melayang kompak
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _isToastSuccess
+                            ? const Color(0xFF10B981).withValues(alpha: 0.25)
+                            : const Color(0xFFEF4444).withValues(alpha: 0.25),
+                        width: 1.5,
                       ),
-                      const SizedBox(height: 20),
-
-                      // HEALTH & METRIC GRID CARDS
-                      ValueListenableBuilder<RtcDataModel?>(
-                        valueListenable: _udpService.rtcStateNotifier,
-                        builder: (context, rtcData, _) {
-                          return _buildMetricsGrid(rtcData);
-                        },
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ACTION BUTTONS (SYNC PHONE TIME & CUSTOM SET)
-                      _buildActionButtons(context),
-                      const SizedBox(height: 24),
-                    ],
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isToastSuccess ? Icons.check_circle_rounded : Icons.error_rounded,
+                                color: _isToastSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _toastMessage ?? '',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2C2493),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Progress Bar Loader (Shrinks from 1.0 to 0.0 over 3 seconds)
+                        AnimatedBuilder(
+                          animation: _toastProgressController,
+                          builder: (context, _) {
+                            return ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(16),
+                                bottomRight: Radius.circular(16),
+                              ),
+                              child: LinearProgressIndicator(
+                                value: _toastProgressController.value,
+                                backgroundColor: Colors.transparent,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _isToastSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                ),
+                                minHeight: 4.0,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -622,13 +757,13 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
           ),
           child: ElevatedButton.icon(
             onPressed: () {
+              final isConnected = _udpService.connectionState.value == EspConnectionState.connected;
+              if (!isConnected) {
+                _showCustomToast('❌ Gagal memperbarui waktu. RTC belum terhubung!', isSuccess: false);
+                return;
+              }
               _udpService.syncWithDeviceTime();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('✅ Waktu HP berhasil dikirim ke RTC via UDP!'),
-                  backgroundColor: Color(0xFF2C2493),
-                ),
-              );
+              _showCustomToast('✅ Waktu berhasil diperbarui');
             },
             icon: const Icon(Icons.sync_rounded, size: 20, color: Colors.white),
             label: const Text(
