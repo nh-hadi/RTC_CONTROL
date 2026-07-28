@@ -436,211 +436,249 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> {
   }
 
   // ====================================================
-  // HEADER: LIGHT BACKGROUND, SINGLE ROW (IDS-STORE | DATE+TIME PILLS | WIFI)
+  // HEADER: RESPONSIF, RAMPING, TIDAK TERPOTONG
   // ====================================================
   Widget _buildHeader(BuildContext context) {
     final hour   = _now.hour.toString().padLeft(2, '0');
     final minute = _now.minute.toString().padLeft(2, '0');
     final second = _now.second.toString().padLeft(2, '0');
-    final timeStr = '$hour : $minute : $second';
+    final timeStr = '$hour:$minute:$second';
     final dateStr = _getFormattedFullDate(_now);
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F6FC),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F5), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Skala berdasarkan lebar layar (referensi: 360px)
+        final w = constraints.maxWidth;
+        final scale = (w / 360).clamp(0.72, 1.0);
+
+        final badgePadH = 8.0 * scale;
+        final badgePadV = 5.0 * scale;
+        final pillPadH  = 10.0 * scale;
+        final pillPadV  = 6.0 * scale;
+        final iconSz    = 12.0 * scale;
+        final dateFontSz = 11.0 * scale;
+        final timeFontSz = 12.0 * scale;
+        final brandFontSz = 10.0 * scale;
+        final clockSz   = 20.0 * scale;
+        final btnSz     = 30.0 * scale;
+        final gap       = 6.0 * scale;
+
+        return Container(
+          margin: EdgeInsets.fromLTRB(12, 8 * scale, 12, 0),
+          padding: EdgeInsets.symmetric(
+            horizontal: 10 * scale,
+            vertical: 7 * scale,   // ← lebih ramping (dari 12 → 7)
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // ── LEFT: IDS-STORE ──────────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2C2493),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.bolt_rounded, color: Colors.white, size: 13),
-                SizedBox(width: 4),
-                Text(
-                  'IDS-STORE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 11,
-                    letterSpacing: 0.9,
-                  ),
-                ),
-              ],
-            ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F6FC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F5), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-
-          // ── CENTER: DATE + TIME PILLS ─────────────────────
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // DATE CAPSULE
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_rounded,
-                        color: Color(0xFF3B3A98),
-                        size: 14,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        dateStr,
-                        style: const TextStyle(
-                          color: Color(0xFF3B3A98),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // ── KIRI: IDS-STORE ─────────────────────────────
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: badgePadH, vertical: badgePadV,
                 ),
-
-                const SizedBox(width: 8),
-
-                // TIME CAPSULE
-                Container(
-                  padding: const EdgeInsets.fromLTRB(7, 6, 13, 6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF2C2493), Color(0xFF5B4CE0)],
-                    ),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF5B4CE0).withOpacity(0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.access_time_filled_rounded,
-                            color: Color(0xFF2C2493),
-                            size: 14,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        timeStr,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13,
-                          letterSpacing: 0.6,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── RIGHT: STATUS DOT + WIFI BUTTON ──────────────
-          ValueListenableBuilder<EspConnectionState>(
-            valueListenable: _udpService.connectionState,
-            builder: (context, state, _) {
-              final isConnected = state == EspConnectionState.connected;
-              return Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isConnected
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFEF4444),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isConnected
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFFEF4444))
-                          .withOpacity(0.7),
-                      blurRadius: 6,
+                  color: const Color(0xFF2C2493),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt_rounded, color: Colors.white, size: iconSz),
+                    SizedBox(width: 3 * scale),
+                    Text(
+                      'IDS-STORE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: brandFontSz,
+                        letterSpacing: 0.7,
+                      ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+              ),
 
-          GestureDetector(
-            onTap: () => _openWifiSettingsDialog(context),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+              SizedBox(width: gap),
+
+              // ── TENGAH: DATE + TIME PILLS (FittedBox auto-scale) ─
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // DATE PILL
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: pillPadH, vertical: pillPadV,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: const Color(0xFFE2E8F0), width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              color: const Color(0xFF3B3A98),
+                              size: iconSz,
+                            ),
+                            SizedBox(width: 4 * scale),
+                            Text(
+                              dateStr,
+                              style: TextStyle(
+                                color: const Color(0xFF3B3A98),
+                                fontWeight: FontWeight.w700,
+                                fontSize: dateFontSz,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(width: gap),
+
+                      // TIME PILL (purple gradient)
+                      Container(
+                        padding: EdgeInsets.fromLTRB(
+                          5 * scale, pillPadV, 10 * scale, pillPadV,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2C2493), Color(0xFF5B4CE0)],
+                          ),
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF5B4CE0).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: clockSz,
+                              height: clockSz,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.access_time_filled_rounded,
+                                  color: const Color(0xFF2C2493),
+                                  size: iconSz + 1,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 5 * scale),
+                            Text(
+                              timeStr,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: timeFontSz,
+                                letterSpacing: 0.5,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              SizedBox(width: gap),
+
+              // ── KANAN: STATUS DOT + WIFI BUTTON ─────────────
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ValueListenableBuilder<EspConnectionState>(
+                    valueListenable: _udpService.connectionState,
+                    builder: (context, state, _) {
+                      final isConnected = state == EspConnectionState.connected;
+                      return Container(
+                        width: 7 * scale,
+                        height: 7 * scale,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isConnected
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isConnected
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFEF4444))
+                                  .withValues(alpha: 0.7),
+                              blurRadius: 5,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(width: 5 * scale),
+                  GestureDetector(
+                    onTap: () => _openWifiSettingsDialog(context),
+                    child: Container(
+                      width: btnSz,
+                      height: btnSz,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0), width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.wifi_rounded,
+                          color: const Color(0xFF525B75),
+                          size: 14 * scale,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-              child: const Center(
-                child: Icon(
-                  Icons.nightlight_round,
-                  color: Color(0xFF525B75),
-                  size: 17,
-                ),
-              ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
-
 
   // ====================================================
   // ULTRA-MODERN CENTER CLOCK DISPLAY CARD

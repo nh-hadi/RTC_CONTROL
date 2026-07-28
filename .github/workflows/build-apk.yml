@@ -74,49 +74,4 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-  # ── Auto-release ke GitHub Releases saat push ke main ──────────
-  release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: build-apk
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download APK Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: IDS-RTC-Controller-APK
-          path: output/
-
-      - name: Get Version
-        id: ver
-        run: |
-          VER=$(grep '^version:' pubspec.yaml | awk '{print $2}' | tr -d '\r')
-          SEMVER=${VER%%+*}
-          echo "tag=v${SEMVER}-build.${{ github.run_number }}" >> $GITHUB_OUTPUT
-          echo "name=IDS-RTC Controller v${SEMVER} (Build ${{ github.run_number }})" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: ${{ steps.ver.outputs.name }}
-          body: |
-            ## IDS-RTC Controller — Android APK
-
-            **Download:** `IDS-RTC-Controller.apk` di bawah.
-
-            > APK ini untuk HP Android 64-bit (arm64-v8a) — semua HP Android 2017+.
-
-            ### Cara Pakai
-            1. Upload firmware ke ESP → WiFi AP: `IDS_RTC_AP` / password: `12345678`
-            2. Sambungkan HP ke WiFi `IDS_RTC_AP`
-            3. Buka app, IP default: `192.168.4.1`
-          files: output/IDS-RTC-Controller.apk
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ══════════════════════════════════════════════════════════
+         IZIN JARINGAN — Wajib untuk UDP socket ke ESP32/ESP8266
+         ══════════════════════════════════════════════════════════ -->
+    <!-- Akses internet (wajib untuk socket UDP) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Info status WiFi (ONLINE/OFFLINE detection) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Ubah state WiFi (untuk buka pengaturan WiFi) -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
     <application
         android:label="uirtc"
         android:name="${applicationName}"
