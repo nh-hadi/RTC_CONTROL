@@ -45,8 +45,10 @@ class RtcHomeScreen extends StatefulWidget {
 class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProviderStateMixin {
   final EspUdpService _udpService = EspUdpService();
   Timer? _localClockTimer;
+  Timer? _blinkTimer;
   DateTime _now = DateTime.now();
   late AnimationController _rgbAnimationController;
+  bool _showColon = true;
 
   @override
   void initState() {
@@ -59,15 +61,23 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
         });
       }
     });
+    _blinkTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (mounted) {
+        setState(() {
+          _showColon = !_showColon;
+        });
+      }
+    });
     _rgbAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4), // Durasi 4 detik per siklus
-    )..repeat();
+      duration: const Duration(seconds: 4), // Durasi 4 detik bolak-balik
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _localClockTimer?.cancel();
+    _blinkTimer?.cancel();
     _rgbAnimationController.dispose();
     super.dispose();
   }
@@ -244,7 +254,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12), // Border radius biasa
@@ -358,7 +368,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
 
           // GIANT HIGH-TECH DIGITAL CLOCK DISPLAY (Running RGB Pelangi)
           FittedBox(
@@ -369,6 +379,9 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
                 final double animVal = _rgbAnimationController.value;
                 return ShaderMask(
                   shaderCallback: (bounds) {
+                    // Geser koordinat X secara horizontal bolak-balik (ping-pong)
+                    final double startX = animVal * 3.0 - 2.0;
+                    final double endX = animVal * 3.0 - 0.5;
                     return LinearGradient(
                       colors: const [
                         Color(0xFFFF0055), // Red Neon
@@ -379,8 +392,8 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
                         Color(0xFFB900FF), // Violet
                         Color(0xFFFF0055), // Loop kembali ke Red
                       ],
-                      begin: Alignment(math.sin(animVal * 2 * math.pi) * 1.5, -0.5),
-                      end: Alignment(math.sin((animVal + 0.5) * 2 * math.pi) * 1.5, 0.5),
+                      begin: Alignment(startX, 0.0),
+                      end: Alignment(endX, 0.0),
                     ).createShader(bounds);
                   },
                   child: Row(
@@ -397,9 +410,9 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
                           letterSpacing: 0.0, // ← TIDAK JAUH-JAUH LAGI
                         ),
                       ),
-                      const Text(
-                        ':',
-                        style: TextStyle(
+                      Text(
+                        _showColon ? ':' : ' ',
+                        style: const TextStyle(
                           fontSize: 88,
                           fontWeight: FontWeight.normal,
                           color: Colors.white,
@@ -417,9 +430,9 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
                           letterSpacing: 0.0,
                         ),
                       ),
-                      const Text(
-                        ':',
-                        style: TextStyle(
+                      Text(
+                        _showColon ? ':' : ' ',
+                        style: const TextStyle(
                           fontSize: 88,
                           fontWeight: FontWeight.normal,
                           color: Colors.white,
@@ -443,7 +456,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with SingleTickerProvider
               },
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
 
           // FULL DETAILED DATE DISPLAY
           Container(
