@@ -91,5 +91,8 @@ flutter:
     - family: Digital7
       fonts:
         - asset: assets/fonts/digital-7.ttf
-        - asset: assets/fonts/digital-7 (mono).ttf
+    - family: Digital7Mono
+      fonts:
+        - asset: assets/fonts/digital-7-mono.ttf
+
 

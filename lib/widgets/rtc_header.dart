@@ -37,63 +37,64 @@ class RtcHeader extends StatelessWidget {
         final w = constraints.maxWidth;
         final scale = (w / 360).clamp(0.72, 1.0);
 
-        final badgePadH = 8.0 * scale;
-        final badgePadV = 5.0 * scale;
-        final pillPadH  = 10.0 * scale;
-        final pillPadV  = 6.0 * scale;
-        final iconSz    = 12.0 * scale;
+        final badgePadH  = 10.0 * scale;
+        final badgePadV  = 5.0 * scale;
+        final pillPadH   = 10.0 * scale;
+        final pillPadV   = 5.0 * scale;
+        final iconSz     = 12.0 * scale;
         final dateFontSz = 11.0 * scale;
-        final timeFontSz = 12.0 * scale;
+        final timeFontSz = 11.0 * scale;
         final brandFontSz = 10.0 * scale;
-        final clockSz   = 20.0 * scale;
-        final btnSz     = 30.0 * scale;
-        final gap       = 6.0 * scale;
+        final gap        = 6.0 * scale;
 
         return Container(
-          margin: EdgeInsets.fromLTRB(12, 8 * scale, 12, 0),
+          margin: EdgeInsets.fromLTRB(12, 10 * scale, 12, 0),
           padding: EdgeInsets.symmetric(
             horizontal: 10 * scale,
-            vertical: 7 * scale,
+            vertical: 6 * scale,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFFF4F6FC),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F5), width: 1),
+            color: const Color(0xFFF4F6FC), // Warna terang (Light Theme)
+            borderRadius: BorderRadius.circular(30), // Kapsul membulat penuh
+            border: Border.all(color: const Color(0xFFE2E8F5), width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // ── KIRI: IDS-STORE ─────────────────────────────
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: badgePadH, vertical: badgePadV,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2C2493),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.bolt_rounded, color: Colors.white, size: iconSz),
-                    SizedBox(width: 3 * scale),
-                    Text(
-                      'IDS-STORE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: brandFontSz,
-                        letterSpacing: 0.7,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: badgePadH, vertical: badgePadV),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C2493),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.bolt_rounded, color: Colors.white, size: iconSz),
+                      SizedBox(width: 3 * scale),
+                      Text(
+                        'IDS-STORE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: brandFontSz,
+                          letterSpacing: 0.7,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -109,12 +110,11 @@ class RtcHeader extends StatelessWidget {
                     children: [
                       // DATE PILL
                       Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: pillPadH, vertical: pillPadV,
-                        ),
+                        padding: EdgeInsets.symmetric(horizontal: pillPadH, vertical: pillPadV),
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: const Color(0xFFE2E8F0), width: 1,
                           ),
@@ -144,39 +144,21 @@ class RtcHeader extends StatelessWidget {
 
                       // TIME PILL (purple gradient)
                       Container(
-                        padding: EdgeInsets.fromLTRB(
-                          5 * scale, pillPadV, 10 * scale, pillPadV,
-                        ),
+                        padding: EdgeInsets.symmetric(horizontal: pillPadH, vertical: pillPadV),
+                        alignment: Alignment.center,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFF2C2493), Color(0xFF5B4CE0)],
                           ),
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF5B4CE0).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Container(
-                              width: clockSz,
-                              height: clockSz,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  Icons.access_time_filled_rounded,
-                                  color: const Color(0xFF2C2493),
-                                  size: iconSz + 1,
-                                ),
-                              ),
+                            Icon(
+                              Icons.access_time_filled_rounded,
+                              color: Colors.white,
+                              size: iconSz,
                             ),
                             SizedBox(width: 5 * scale),
                             Text(
@@ -202,6 +184,7 @@ class RtcHeader extends StatelessWidget {
               // ── KANAN: STATUS DOT + WIFI BUTTON ─────────────
               Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   ValueListenableBuilder<EspConnectionState>(
                     valueListenable: udpService.connectionState,
@@ -215,15 +198,6 @@ class RtcHeader extends StatelessWidget {
                           color: isConnected
                               ? const Color(0xFF10B981)
                               : const Color(0xFFEF4444),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isConnected
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFEF4444))
-                                  .withValues(alpha: 0.7),
-                              blurRadius: 5,
-                            ),
-                          ],
                         ),
                       );
                     },
@@ -232,21 +206,13 @@ class RtcHeader extends StatelessWidget {
                   GestureDetector(
                     onTap: () => openWifiSettingsDialog(context, udpService),
                     child: Container(
-                      width: btnSz,
-                      height: btnSz,
+                      padding: EdgeInsets.all(5 * scale),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: const Color(0xFFE2E8F0), width: 1,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
                       ),
                       child: Center(
                         child: Icon(
