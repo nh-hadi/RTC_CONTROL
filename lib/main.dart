@@ -47,6 +47,8 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateM
   Timer? _localClockTimer;
   Timer? _blinkTimer;
   Timer? _toastTimer;
+  Timer? _toastStartTimer;
+  Timer? _toastClearTimer;
   DateTime _now = DateTime.now();
   late AnimationController _rgbAnimationController;
   late AnimationController _toastProgressController;
@@ -80,7 +82,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateM
 
     _toastProgressController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3000), // Durasi toast tampil 3 detik
+      duration: const Duration(milliseconds: 3000), // Durasi loader menyusut tepat 3 detik
     );
   }
 
@@ -89,36 +91,45 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateM
     _localClockTimer?.cancel();
     _blinkTimer?.cancel();
     _toastTimer?.cancel();
+    _toastStartTimer?.cancel();
+    _toastClearTimer?.cancel();
     _rgbAnimationController.dispose();
     _toastProgressController.dispose();
     super.dispose();
   }
 
   void _showCustomToast(String message, {bool isSuccess = true}) {
-    // 1. Batalkan timer penutupan sebelumnya agar tidak menutup di tengah jalan
+    // 1. Batalkan semua timer aktif dari klik sebelumnya agar tidak tumpang tindih
     _toastTimer?.cancel();
+    _toastStartTimer?.cancel();
+    _toastClearTimer?.cancel();
 
-    // 2. Reset progress bar notifikasi langsung dari awal (1.0 -> 0.0)
-    _toastProgressController.reset();
+    // 2. Hentikan controller progress dan kembalikan nilainya ke 1.0 (penuh & diam)
+    _toastProgressController.stop();
+    _toastProgressController.value = 1.0;
 
     setState(() {
       _toastMessage = message;
       _isToastSuccess = isSuccess;
-      _showToast = true; // Memicu transisi naik (slide-in)
+      _showToast = true; // Memicu transisi meluncur naik (300ms)
     });
 
-    // 3. Jalankan progress bar menyusut (dari 1.0 ke 0.0)
-    _toastProgressController.reverse(from: 1.0);
+    // 3. Jalankan loader menyusut setelah transisi meluncur naik selesai (300ms)
+    _toastStartTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted && _showToast) {
+        _toastProgressController.reverse(from: 1.0);
+      }
+    });
 
-    // 4. Set timer baru untuk menutup secara otomatis setelah 3 detik
-    _toastTimer = Timer(const Duration(milliseconds: 3000), () {
+    // 4. Set timer penutupan pada 3300ms (300ms naik + 3000ms menyusut). Loader tepat menyentuh 0.0 (habis) saat slide-down dimulai
+    _toastTimer = Timer(const Duration(milliseconds: 3300), () {
       if (mounted) {
         setState(() {
-          _showToast = false; // Memicu transisi turun (slide-out)
+          _showToast = false; // Memicu transisi meluncur turun (300ms)
         });
         
-        // Tunggu 300ms (durasi animasi slide-out selesai) sebelum menghapus widget dari tree
-        Timer(const Duration(milliseconds: 300), () {
+        // 5. Tunggu 300ms transisi turun selesai, baru bersihkan data pesan agar widget aman hilang dari layout tree
+        _toastClearTimer = Timer(const Duration(milliseconds: 300), () {
           if (mounted && !_showToast) {
             setState(() {
               _toastMessage = null;
@@ -145,7 +156,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateM
   Future<void> _openCustomDatePicker(BuildContext context) async {
     final isConnected = _udpService.connectionState.value == EspConnectionState.connected;
     if (!isConnected) {
-      _showCustomToast('❌ Gagal memperbarui waktu. RTC belum terhubung!', isSuccess: false);
+      _showCustomToast('Waktu gagal diperbarui', isSuccess: false);
       return;
     }
 
@@ -212,7 +223,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateM
       selectedDateTime.second,
     );
 
-    _showCustomToast('✅ Waktu berhasil diperbarui');
+    _showCustomToast('Waktu berhasil diperbarui');
   }
 
   @override
@@ -277,85 +288,101 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateM
             ),
           ),
 
-          // OVERLAY TOAST / NOTIFICATION (Floating at the bottom center with slide-up & fade-in animations)
+          // OVERLAY TOAST / NOTIFICATION (Floating compact capsule with dynamic entry & exit animations)
           AnimatedPositioned(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeOutBack, // Efek pop-up memantul yang premium
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack, // Efek memantul halus
             left: 24,
             right: 24,
-            bottom: _showToast ? 30 : -120, // Slide up/down secara dinamis
+            bottom: _showToast ? 35 : -140, // Turun lebih jauh agar tersembunyi sempurna saat keluar
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 250),
-              opacity: _showToast ? 1.0 : 0.0, // Fade-in/out
+              opacity: _showToast ? 1.0 : 0.0,
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 300), // Dibatasi maksimal lebar 300px agar melayang kompak
+                  constraints: const BoxConstraints(maxWidth: 240), // Lebih kompak
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(24), // Membulat lebih premium
                       border: Border.all(
                         color: _isToastSuccess
-                            ? const Color(0xFF10B981).withValues(alpha: 0.25)
-                            : const Color(0xFFEF4444).withValues(alpha: 0.25),
-                        width: 1.5,
+                            ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                            : const Color(0xFFEF4444).withValues(alpha: 0.18),
+                        width: 1.2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 20,
+                          color: const Color(0xFF2C2493).withValues(alpha: 0.08),
+                          blurRadius: 16,
                           offset: const Offset(0, 6),
                         ),
                       ],
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _isToastSuccess ? Icons.check_circle_rounded : Icons.error_rounded,
-                                color: _isToastSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _toastMessage ?? '',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF2C2493),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(22.8),
+                        bottomRight: Radius.circular(22.8),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 6, 14, 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Bulatan Ikon Lembut
+                                Container(
+                                  padding: const EdgeInsets.all(5),
+                                  decoration: BoxDecoration(
+                                    color: _isToastSuccess
+                                        ? const Color(0xFF10B981).withValues(alpha: 0.08)
+                                        : const Color(0xFFEF4444).withValues(alpha: 0.08),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _isToastSuccess ? Icons.check_rounded : Icons.close_rounded,
+                                    color: _isToastSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                    size: 13,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Progress Bar Loader (Shrinks from 1.0 to 0.0 over 3 seconds)
-                        AnimatedBuilder(
-                          animation: _toastProgressController,
-                          builder: (context, _) {
-                            return ClipRRect(
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(16),
-                                bottomRight: Radius.circular(16),
-                              ),
-                              child: LinearProgressIndicator(
-                                value: _toastProgressController.value,
-                                backgroundColor: Colors.transparent,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  _isToastSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _toastMessage ?? '',
+                                    textAlign: TextAlign.left,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF2C2493),
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
                                 ),
-                                minHeight: 4.0,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+                              ],
+                            ),
+                          ),
+                          // Progress Bar Loader Kustom (Menyusut linear dari kanan ke kiri, terpotong rapi di dalam border melengkung)
+                          AnimatedBuilder(
+                            animation: _toastProgressController,
+                            builder: (context, _) {
+                              return Align(
+                                alignment: Alignment.centerLeft,
+                                child: FractionallySizedBox(
+                                  widthFactor: _toastProgressController.value,
+                                  child: Container(
+                                    height: 3.5,
+                                    color: _isToastSuccess
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFEF4444),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -759,11 +786,11 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> with TickerProviderStateM
             onPressed: () {
               final isConnected = _udpService.connectionState.value == EspConnectionState.connected;
               if (!isConnected) {
-                _showCustomToast('❌ Gagal memperbarui waktu. RTC belum terhubung!', isSuccess: false);
+                _showCustomToast('Waktu gagal diperbarui', isSuccess: false);
                 return;
               }
               _udpService.syncWithDeviceTime();
-              _showCustomToast('✅ Waktu berhasil diperbarui');
+              _showCustomToast('Waktu berhasil diperbarui');
             },
             icon: const Icon(Icons.sync_rounded, size: 20, color: Colors.white),
             label: const Text(
