@@ -24,7 +24,6 @@ class RtcApp extends StatelessWidget {
           primary: Color(0xFF06B6D4), // Cyan Accent
           secondary: Color(0xFF3B82F6), // Blue Accent
           surface: Color(0xFF1E293B), // Card Surface
-          background: Color(0xFF0F172A),
         ),
         fontFamily: 'Roboto',
       ),
@@ -298,6 +297,9 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> {
 
   Future<void> _openCustomDatePicker(BuildContext context) async {
     final now = DateTime.now();
+    // Capture messenger before async gap to avoid BuildContext warning
+    final messenger = ScaffoldMessenger.of(context);
+
     final date = await showDatePicker(
       context: context,
       initialDate: now,
@@ -321,6 +323,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> {
     if (date == null || !mounted) return;
 
     final time = await showTimePicker(
+      // ignore: use_build_context_synchronously
       context: context,
       initialTime: TimeOfDay.fromDateTime(now),
       builder: (context, child) {
@@ -358,7 +361,7 @@ class _RtcHomeScreenState extends State<RtcHomeScreen> {
       selectedDateTime.second,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(
           'Waktu diset ke ${selectedDateTime.toString().split('.')[0]}',
