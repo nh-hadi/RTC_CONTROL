@@ -1,0 +1,143 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:   # Bisa trigger manual dari tab Actions
+
+jobs:
+  build-apk:
+    name: 🏗️ Build Flutter APK (arm64-v8a)
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout kode ──────────────────────────────────────────
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      # ── 2. Setup Java 17 (required for Android build) ─────────────
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ── 3. Setup Flutter ──────────────────────────────────────────
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          channel: 'stable'
+          cache: true
+
+      # ── 4. Install dependencies ───────────────────────────────────
+      - name: 📦 Flutter Pub Get
+        run: flutter pub get
+
+      # ── 5. Analyze (opsional, bisa dikomentari kalau mau cepat) ───
+      - name: 🔍 Flutter Analyze
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+
+      # ── 6. Build APK kecil (split per ABI, hanya arm64-v8a) ───────
+      - name: 🏗️ Build APK arm64-v8a (Kecil)
+        run: |
+          flutter build apk \
+            --split-per-abi \
+            --release \
+            --target-platform android-arm64 \
+            --obfuscate \
+            --split-debug-info=build/debug-info \
+            --no-tree-shake-icons
+
+      # ── 7. Rename APK supaya mudah dikenali ───────────────────────
+      - name: 📝 Rename APK
+        run: |
+          mkdir -p output
+          # Copy hanya arm64-v8a (terkecil & kompatibel HP modern)
+          find build/app/outputs/flutter-apk/ -name "*arm64*.apk" \
+            -exec cp {} output/IDS-RTC-Controller-arm64.apk \;
+          ls -lh output/
+
+      # ── 8. Upload APK sebagai Artifact ────────────────────────────
+      - name: 📤 Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IDS-RTC-Controller-APK
+          path: output/IDS-RTC-Controller-arm64.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      # ── 9. Tampilkan info ukuran APK ──────────────────────────────
+      - name: 📊 APK Size Info
+        run: |
+          echo "====================================="
+          echo "📱 APK BUILD SELESAI"
+          echo "====================================="
+          ls -lh output/
+          SIZE=$(du -sh output/IDS-RTC-Controller-arm64.apk | cut -f1)
+          echo "✅ Ukuran APK: $SIZE"
+          echo "====================================="
+
+  # ── OPTIONAL: Auto-Release ke GitHub Releases saat push ke main ──
+  release:
+    name: 🚀 Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-apk
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📥 Download APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: IDS-RTC-Controller-APK
+          path: output/
+
+      - name: 🏷️ Get Version dari pubspec.yaml
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d '\r')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION%%+*}" >> $GITHUB_OUTPUT
+
+      - name: 🚀 Create Release & Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}-${{ github.run_number }}
+          name: "IDS-RTC Controller ${{ steps.version.outputs.tag }} (Build #${{ github.run_number }})"
+          body: |
+            ## 📱 IDS-RTC Controller Android APK
+
+            ### 📥 Download
+            Download file **IDS-RTC-Controller-arm64.apk** di bawah.
+
+            > ⚠️ APK ini untuk HP Android modern (arm64-v8a / 64-bit).
+            > Cocok untuk semua HP Android 2017 ke atas.
+
+            ### ✨ Fitur
+            - 📡 Koneksi UDP realtime ke ESP32/ESP8266
+            - ⏱️ Baca waktu & suhu dari RTC DS3231
+            - 📱 Sinkronisasi waktu HP ke RTC
+            - 🌐 Indikator status ONLINE/OFFLINE
+
+            ### 🔌 Cara Pakai
+            1. Upload firmware ke ESP (WiFi AP: `IDS_RTC_AP`, password: `12345678`)
+            2. Sambungkan HP ke WiFi `IDS_RTC_AP`
+            3. Buka app, IP default: `192.168.4.1`
+
+            ---
+            *Build otomatis via GitHub Actions*
+          files: output/IDS-RTC-Controller-arm64.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
